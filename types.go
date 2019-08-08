@@ -27,7 +27,7 @@ func (types *ItemTypes) Fetch() error {
 		return errQuery
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		i := ItemType{}
 		if err := rows.Scan(&i.Id, &i.Name); err != nil {
@@ -39,10 +39,33 @@ func (types *ItemTypes) Fetch() error {
 }
 
 type Item struct {
-	Id          int    `json:"id"`
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	TypeId      int    `json:"typeId"`
+	Id          sql.NullInt64  `json:"id"`
+	Name        sql.NullString `json:"name"`
+	Description sql.NullString `json:"description"`
+	TypeId      sql.NullInt64  `json:"typeId"`
+	TypeName    sql.NullString `json:"typeName"`
+}
+
+func (item *Item) Fetch(id int) error {
+	db, err := sql.Open(driverName, dbName)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return err
+	}
+	rows, errQuery := db.Query("SELECT id, name, type_id FROM items WHERE id = $1", id)
+	if errQuery != nil {
+		fmt.Printf("%v", errQuery)
+		return errQuery
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		if err := rows.Scan(&item.Id, &item.Name, &item.TypeId); err != nil {
+			fmt.Printf("%v", err)
+			return err
+		}
+	}
+	return nil
 }
 
 type Items struct {
@@ -59,7 +82,7 @@ func (items *Items) Fetch() error {
 		return errQuery
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
 		i := Item{}
 		if err := rows.Scan(&i.Id, &i.Name, &i.TypeId); err != nil {
@@ -70,22 +93,17 @@ func (items *Items) Fetch() error {
 	return nil
 }
 
-type DependencyItem struct {
-	Id                   int            `json:"id"`
-	TypeName             string         `json:"typeName"`
-	Name                 string         `json:"name"`
-	DepToItemId          sql.NullInt64  `json:"depToItemId"`
-	DepToItemTypeName    sql.NullString `json:"depToItemTypeName"`
-	DepToItemName        sql.NullString `json:"depToItemName"`
-	DepToItemDescription sql.NullString `json:"depToItemDescription"`
-	DepReason            sql.NullString `json:"depReason"`
+type ItemDependency struct {
+	Item
+	DepReason sql.NullString `json:"depReason"`
 }
 
-type DependencyItems struct {
-	Data []DependencyItem
+type ItemDependencies struct {
+	Item
+	Dependencies []ItemDependency `json:"dependencies"`
 }
 
-func (depItems *DependencyItems) Fetch() error {
+func (itemDeps *ItemDependencies) Fetch(itemId int) error {
 	db, err := sql.Open(driverName, dbName)
 	if err != nil {
 		fmt.Printf("%v", err)
@@ -93,33 +111,33 @@ func (depItems *DependencyItems) Fetch() error {
 	}
 	rows, errQuery := db.Query(`
 		SELECT
-			items.id,
-       		item_types.name as type_name,
-       		items.name,
-       		item_dependencies.item_dest_id AS dep_to_item_id,
-       		dependency_item_types.name AS dep_to_item_type_name,
-       		dependency_items.name AS dep_to_item_name,
-       		dependency_items.description AS dep_to_item_description,
+			-- items.id,
+       		-- item_types.name as type_name,
+       		-- items.name,
+       		item_dependencies.item_dest_id AS id,
+       		dependency_items.name AS name,
+       		dependency_items.description AS description,
        		item_dependencies.reason AS dep_reason
 		FROM items
        		LEFT JOIN item_types ON item_types.id = items.type_id
        		LEFT JOIN item_dependencies ON item_dependencies.item_id = items.id
        		LEFT JOIN items dependency_items ON dependency_items.id = item_dependencies.item_dest_id
        		LEFT JOIN item_types dependency_item_types ON dependency_item_types.id = dependency_items.type_id
-	`)
+		WHERE items.id = $1
+	`, itemId)
 	if errQuery != nil {
 		fmt.Printf("%v", errQuery)
 		return errQuery
 	}
 	defer rows.Close()
-	
+
 	for rows.Next() {
-		i := DependencyItem{}
-		if err := rows.Scan(&i.Id, &i.TypeName, &i.Name, &i.DepToItemId, &i.DepToItemTypeName, &i.DepToItemName, &i.DepToItemDescription, &i.DepReason); err != nil {
+		i := ItemDependency{}
+		if err := rows.Scan(&i.Id, &i.Name, &i.Description, &i.DepReason); err != nil {
 			fmt.Printf("%v", err)
 			return err
 		}
-		depItems.Data = append(depItems.Data, i)
+		itemDeps.Dependencies = append(itemDeps.Dependencies, i)
 	}
 	return nil
 }

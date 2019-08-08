@@ -34,13 +34,14 @@ from items
        left join item_types on item_types.id = items.type_id
        left join item_dependencies on item_dependencies.item_id = items.id
        left join items dependency_items on dependency_items.id = item_dependencies.item_dest_id
-       left join item_types dependency_item_types on dependency_item_types.id = dependency_items.type_id;
+       left join item_types dependency_item_types on dependency_item_types.id = dependency_items.type_id
+where items.type_id = 2;
 
 -- 被依存関係を取得する
 select items.id,
        item_types.name,
        items.name,
-       item_dependencies.item_dest_id,
+       item_dependencies.item_id,
        dependency_item_types.name,
        dependency_items.name,
        dependency_items.description
@@ -48,4 +49,5 @@ from items
        left join item_types on item_types.id = items.type_id
        left join item_dependencies on item_dependencies.item_dest_id = items.id
        left join items dependency_items on dependency_items.id = item_dependencies.item_id
-       left join item_types dependency_item_types on dependency_item_types.id = dependency_items.type_id;
+       left join item_types dependency_item_types on dependency_item_types.id = dependency_items.type_id
+where items.type_id = 2;
