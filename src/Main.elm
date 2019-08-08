@@ -22,7 +22,7 @@ type Model
   | Loading
   | SuccessItemTypes (List ItemType)
   | SuccessItems (List Item)
-  | SuccessDependencyItems (List DependencyItem)
+  | SuccessItemDependencies ItemDependencies
 
 
 
@@ -30,10 +30,13 @@ type alias ItemType =
     { id : Int, name : String }
 
 type alias Item =
-    { id : Int, name : String, description : String, typeId : Int, typeName : String }
+    { id : Int, name : String, description : String}
 
---type alias DependencyItem =
---    { id : Int, name : String }
+type alias ItemDependency =
+    { id : Int, name : String, description : String, reason : String }
+
+type alias ItemDependencies =
+    { id : Int, name : String, description : String, dependecies : (List ItemDependency) }
 
 
 
@@ -48,8 +51,7 @@ type Msg
   | GotItemTypes (Result Http.Error (List ItemType))
   | GetItems
   | GotItems (Result Http.Error (List Item))
-  | GetDependencyItems
-  | GotDependencyItems (Result Http.Error (List DependencyItem))
+  | GotItemDependencies (Result Http.Error ItemDependencies)
   | GetItemDependencies Int
 
 
@@ -59,11 +61,8 @@ update msg model =
     GetItemTypes ->
         ( model, getItemTypes )
 
-    GetItems ->`
+    GetItems ->
         ( model, getItems )
-
-    GetDependencyItems ->
-        ( model, getDependencyItems )
 
     GetItemDependencies itemId ->
         ( model, getItemDependencies itemId )
@@ -84,10 +83,10 @@ update msg model =
           Debug.log ( Debug.toString err )
           (Failure, Cmd.none)
 
-    GotDependencyItems result ->
+    GotItemDependencies result ->
           case result of
             Ok fullText ->
-              (SuccessDependencyItems fullText, Cmd.none)
+              (SuccessItemDependencies fullText, Cmd.none)
             Err err ->
               Debug.log ( Debug.toString err )
               (Failure, Cmd.none)
@@ -121,12 +120,12 @@ view model =
                       ]
               ]
 
-        SuccessDependencyItems dependencyItems ->
+        SuccessItemDependencies itemDependencies ->
           div []
               [ viewMenu
               , table []
                       [ tbody []
-                              ( viewDependencyItems dependencyItems )
+                              ( viewItemDependencies itemDependencies )
                       ]
               ]
 
@@ -134,7 +133,6 @@ viewMenu : Html Msg
 viewMenu =
   div [] [ button [ onClick GetItems ] [ text "Items" ]
          , button [ onClick GetItemTypes ] [ text "ItemTypes" ]
-         , button [ onClick GetDependencyItems ] [ text "DependencyItems" ]
          ]
 
 viewItemTypes : (List ItemType) -> List (Html Msg)
@@ -155,7 +153,6 @@ viewItems items =
       tr []
          [ td [] [ text ( String.fromInt item.id ) ]
          , td [] [ text item.name ]
-         , td [] [ text ( String.fromInt item.typeId ) ]
          , td [] [ button [ onClick ( GetItemDependencies item.id )]
                           [ text "dependencies" ]
                  ]
@@ -163,16 +160,17 @@ viewItems items =
     )
     items
 
-viewDependencyItems : (List DependencyItem) -> List (Html Msg)
-viewDependencyItems dependencyItems =
+
+viewItemDependencies : ItemDependencies -> List (Html Msg)
+viewItemDependencies itemDependencies =
   List.map
-    (\dependencyItem ->
+    (\dep ->
       tr []
-         [ td [] [ text ( String.fromInt dependencyItem.id ) ]
-         , td [] [ text dependencyItem.name ]
+         [ td [] [ text ( String.fromInt dep.id ) ]
+         , td [] [ text dep.name ]
          ]
     )
-    dependencyItems
+    itemDependencies.dependecies
 
 
 
@@ -203,45 +201,40 @@ getItems =
 
 itemDecoder : Decoder Item
 itemDecoder =
-  Json.Decode.map5 Item
+  Json.Decode.map3 Item
     (Json.Decode.field "id" Json.Decode.int)
     (Json.Decode.field "name" Json.Decode.string)
     (Json.Decode.field "description" Json.Decode.string)
-    (Json.Decode.field "typeId" Json.Decode.int)
-    (Json.Decode.field "typeName" Json.Decode.string)
 
 itemsDecoder : Decoder (List Item)
 itemsDecoder =
     Json.Decode.list itemDecoder
 
 
-getDependencyItems : Cmd Msg
-getDependencyItems =
-    Http.get
-      { url = "http://localhost:8080/item_dependencies"
-      , expect = Http.expectJson GotDependencyItems dependencyItemsDecoder
-      }
-
-dependencyItemDecoder : Decoder DependencyItem
-dependencyItemDecoder =
-  Json.Decode.map2 DependencyItem
-    (Json.Decode.field "id" Json.Decode.int)
-    (Json.Decode.field "name" Json.Decode.string)
-
-dependencyItemsDecoder : Decoder (List DependencyItem)
-dependencyItemsDecoder =
-    Json.Decode.list dependencyItemDecoder
-
-
 getItemDependencies : Int -> Cmd Msg
 getItemDependencies itemId =
     Http.get
       { url = String.concat ["http://localhost:8080/item_dependencies?itemId=", String.fromInt(itemId) ]
-      , expect = Http.expectJson GotDependencyItems dependencyItemsDecoder
+      , expect = Http.expectJson GotItemDependencies itemDependenciesDecoder
       }
+
+itemDependenciesDecoder : Decoder ItemDependencies
+itemDependenciesDecoder =
+    Json.Decode.map4 ItemDependencies
+      (Json.Decode.field "id" Json.Decode.int)
+      (Json.Decode.field "name" Json.Decode.string)
+      (Json.Decode.field "description" Json.Decode.string)
+      (Json.Decode.field "dependencies" (Json.Decode.list itemDependencyDecoder))
+
+itemDependencyDecoder : Decoder ItemDependency
+itemDependencyDecoder =
+  Json.Decode.map4 ItemDependency
+    (Json.Decode.field "id" Json.Decode.int)
+    (Json.Decode.field "name" Json.Decode.string)
+    (Json.Decode.field "description" Json.Decode.string)
+    (Json.Decode.field "reason" Json.Decode.string)
 
 
 
 subscriptions : Model -> Sub Msg
-subscriptions model =
-  Sub.none
+subscriptions model = Sub.none
