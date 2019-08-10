@@ -131,9 +131,13 @@ view model =
 
 viewMenu : Html Msg
 viewMenu =
-  div [] [ button [ onClick GetItems ] [ text "Items" ]
-         , button [ onClick GetItemTypes ] [ text "ItemTypes" ]
-         ]
+  div []
+      [ div []
+            [ button [ onClick GetItems ] [ text "Items" ]
+            , button [ onClick GetItemTypes ] [ text "ItemTypes" ]
+            ]
+      , hr [] []
+      ]
 
 viewItemTypes : (List ItemType) -> List (Html Msg)
 viewItemTypes itemTypes =
