@@ -22,16 +22,13 @@ main =
 
 
 
---type Model
---  = Failure
---  | Loading
---  | SuccessItemTypes (List ItemType)
---  | SuccessItems (List Item)
---  | SuccessItemDependencies ItemDependencies
 type alias Model =
-  { key : Nav.Key
-  , url : Url.Url
-  }
+    { key : Nav.Key
+    , url : Url.Url
+    , items : List Item
+    , itemTypes : List ItemType
+    , itemDependencies : ItemDependencies
+    }
 
 
 type alias ItemType =
@@ -50,20 +47,20 @@ type alias ItemDependencies =
 
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
-  ( Model key url, Cmd.none )
+    let
+        itemDep = ItemDependencies 0 "" "" []
+    in
+    Debug.log(url.path)
+    changeRouteTo url ( Model key url [] [] itemDep )
 
 
 
 type Msg
-  = ClickedLink Browser.UrlRequest
-  | ChangedUrl Url.Url
---  | GetItemTypes
---  | GotItemTypes (Result Http.Error (List ItemType))
---  | GetItems
---  | GotItems (Result Http.Error (List Item))
---  | GotItemDependencies (Result Http.Error ItemDependencies)
---  | GetItemDependencies Int
-
+    = ClickedLink Browser.UrlRequest
+    | ChangedUrl Url.Url
+    | GotItemsMsg (Result Http.Error (List Item))
+    | GotItemTypesMsg (Result Http.Error (List ItemType))
+    | GotItemDependenciesMsg (Result Http.Error ItemDependencies)
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -79,38 +76,42 @@ update msg model =
         ChangedUrl url ->
             changeRouteTo url model
 
---
---    GetItemDependencies itemId ->
---        ( model, getItemDependencies itemId )
---
---    GotItemTypes result ->
---      case result of
---        Ok fullText ->
---          (SuccessItemTypes fullText, Cmd.none)
---        Err err ->
---          Debug.log ( Debug.toString err )
---          (Failure, Cmd.none)
---
---    GotItems result ->
---      case result of
---        Ok fullText ->
---          (SuccessItems fullText, Cmd.none)
---        Err err ->
---          Debug.log ( Debug.toString err )
---          (Failure, Cmd.none)
---
---    GotItemDependencies result ->
---          case result of
---            Ok fullText ->
---              (SuccessItemDependencies fullText, Cmd.none)
---            Err err ->
---              Debug.log ( Debug.toString err )
---              (Failure, Cmd.none)
+        GotItemsMsg result ->
+            case result of
+                Ok items ->
+                    ( { model | items = items} , Cmd.none )
+                Err err ->
+                    Debug.log ( Debug.toString err )
+                    ( model, Cmd.none )
+
+        GotItemTypesMsg result ->
+            case result of
+                Ok itemTypes ->
+                    ( { model | itemTypes = itemTypes } , Cmd.none )
+                Err err ->
+                    Debug.log ( Debug.toString err )
+                    ( model, Cmd.none )
+
+        GotItemDependenciesMsg result ->
+            case result of
+                Ok itemDependencies ->
+                    ( { model | itemDependencies = itemDependencies } , Cmd.none )
+                Err err ->
+                    Debug.log ( Debug.toString err )
+                    ( model, Cmd.none )
 
 
 changeRouteTo : Url.Url -> Model -> ( Model, Cmd Msg )
 changeRouteTo url model =
-    ( { model | url = url }, Cmd.none )
+    case url.path of
+        "/src/items" ->
+            ( { model | url = url }, getItems )
+        "/src/item_types" ->
+            ( { model | url = url }, getItemTypes )
+        "/src/item_dependencies" ->
+            ( { model | url = url }, getItemDependencies 19 )
+        _ ->
+            ( { model | url = url }, Cmd.none )
 
 
 
@@ -151,8 +152,39 @@ viewItemsPage model =
         , a [ href "item_types" ] [ text "ItemTypes" ]
         , text " | "
         , a [ href "item_dependencies" ] [ text "ItemDependencies" ]
+        , hr [] []
+        , viewItemList model.items
         ]
     }
+
+viewItemList : List Item -> Html Msg
+viewItemList items =
+    table []
+          [ thead []
+                  [ tr []
+                       [ th [] [ text "Id" ]
+                       , th [] [ text "Name" ]
+                       , th [] [ text "Description" ]
+                       , th [] [ text "" ]
+                       ]
+                  ]
+          , tbody [] ( viewItemRow items )
+          ]
+
+viewItemRow : List Item -> List ( Html Msg )
+viewItemRow items =
+  List.map
+    (\item ->
+      tr []
+         [ td [] [ text ( String.fromInt item.id ) ]
+         , td [] [ text item.name ]
+         , td [] [ text item.description ]
+         , a [ href (String.concat ["item_dependencies?id=", String.fromInt item.id ]) ]
+             [ text "Dependencies" ]
+         ]
+    )
+    items
+
 
 viewItemTypesPage : Model -> Browser.Document Msg
 viewItemTypesPage model =
@@ -165,12 +197,40 @@ viewItemTypesPage model =
         , a [ href "items" ] [ text "Items" ]
         , text " | "
         , a [ href "item_dependencies" ] [ text "ItemDependencies" ]
+        , viewItemTypeTable model.itemTypes
         ]
    }
 
+viewItemTypeTable : List ItemType -> Html Msg
+viewItemTypeTable itemTypes =
+    table []
+          [ thead []
+                  [ tr []
+                       [ th [] [ text "Id" ]
+                       , th [] [ text "Name" ]
+                       , th [] [ text "Description" ]
+                       , th [] [ text "" ]
+                       ]
+                  ]
+          , tbody [] ( viewItemTypeRow itemTypes )
+          ]
+
+viewItemTypeRow : List ItemType -> List ( Html Msg )
+viewItemTypeRow itemTypes =
+  List.map
+    (\itemType ->
+      tr []
+         [ td [] [ text ( String.fromInt itemType.id ) ]
+         , a [ href (String.concat ["item_types?id=", String.fromInt itemType.id ]) ]
+             [ text itemType.name ]
+         ]
+    )
+    itemTypes
+
+
 viewItemDependenciesPage : Model -> Browser.Document Msg
 viewItemDependenciesPage model =
-   { title = "Izone | Items"
+   { title = "Izone | Item Dependencies"
    , body =
         [ h1 [] [ text "Welcome Izone!" ]
         , h2 [] [ text "ItemTypes!" ]
@@ -179,154 +239,103 @@ viewItemDependenciesPage model =
         , a [ href "items" ] [ text "Items" ]
         , text " | "
         , a [ href "item_types" ] [ text "ItemTypes" ]
-        ]
+        , viewItemDependenciesTable model.itemDependencies.dependecies
+       ]
    }
 
---view model =
---    case model of
---        Loading ->
---          div [] [ text "Loading..." ]
---
---        Failure ->
---          div [] [ text "I was unable to load your resource." ]
---
---        SuccessItemTypes itemTypes ->
---          div []
---              [ viewMenu
---              , table []
---                      [ tbody []
---                              ( viewItemTypes itemTypes )
---                      ]
---              ]
---
---        SuccessItems items ->
---          div []
---              [ viewMenu
---              , table []
---                      [ tbody []
---                              ( viewItems items )
---                      ]
---              ]
---
---        SuccessItemDependencies itemDependencies ->
---          div []
---              [ viewMenu
---              , table []
---                      [ tbody []
---                              ( viewItemDependencies itemDependencies )
---                      ]
---              ]
+viewItemDependenciesTable : List ItemDependency -> Html Msg
+viewItemDependenciesTable dependencies =
+    table []
+          [ thead []
+                  [ tr []
+                       [ th [] [ text "Id" ]
+                       , th [] [ text "Name" ]
+                       , th [] [ text "Description" ]
+                       , th [] [ text "" ]
+                       ]
+                  ]
+          , tbody [] ( viewItemDependenciesRow dependencies )
+          ]
 
---viewMenu : Html Msg
---viewMenu =
---  div []
---      [ div []
---            [ a [ href "/items" ] [ text "Items" ]
---            , a [ href "/item_types" ] [ text "ItemTypes" ]
---            , a [ href "/item_dependencies" ] [ text "ItemDependencies" ]
---            ]
---      , hr [] []
---      ]
---
---viewItemTypes : (List ItemType) -> List (Html Msg)
---viewItemTypes itemTypes =
---  List.map
---    (\itemType ->
---      tr []
---         [ td [] [ text ( String.fromInt itemType.id ) ]
---         , td [] [ text itemType.name ]
---         ]
---    )
---    itemTypes
---
---viewItems : (List Item) -> List (Html Msg)
---viewItems items =
---  List.map
---    (\item ->
---      tr []
---         [ td [] [ text ( String.fromInt item.id ) ]
---         , td [] [ text item.name ]
---         , td [] [ button [ onClick ( GetItemDependencies item.id )]
---                          [ text "dependencies" ]
---                 ]
---         ]
---    )
---    items
---
---
---viewItemDependencies : ItemDependencies -> List (Html Msg)
---viewItemDependencies itemDependencies =
---  List.map
---    (\dep ->
---      tr []
---         [ td [] [ text ( String.fromInt dep.id ) ]
---         , td [] [ text dep.name ]
---         ]
---    )
---    itemDependencies.dependecies
---
---
---
---getItemTypes : Cmd Msg
---getItemTypes =
---    Http.get
---      { url = "http://localhost:8080/item_types"
---      , expect = Http.expectJson GotItemTypes itemTypesDecoder
---      }
---
---itemTypeDecoder : Decoder ItemType
---itemTypeDecoder =
---  Json.Decode.map2 ItemType
---    (Json.Decode.field "id" Json.Decode.int)
---    (Json.Decode.field "name" Json.Decode.string)
---
---itemTypesDecoder : Decoder (List ItemType)
---itemTypesDecoder =
---    Json.Decode.list itemTypeDecoder
---
---
---getItems : Cmd Msg
---getItems =
---    Http.get
---      { url = "http://localhost:8080/items"
---      , expect = Http.expectJson GotItems itemsDecoder
---      }
---
---itemDecoder : Decoder Item
---itemDecoder =
---  Json.Decode.map3 Item
---    (Json.Decode.field "id" Json.Decode.int)
---    (Json.Decode.field "name" Json.Decode.string)
---    (Json.Decode.field "description" Json.Decode.string)
---
---itemsDecoder : Decoder (List Item)
---itemsDecoder =
---    Json.Decode.list itemDecoder
---
---
---getItemDependencies : Int -> Cmd Msg
---getItemDependencies itemId =
---    Http.get
---      { url = String.concat ["http://localhost:8080/item_dependencies?itemId=", String.fromInt(itemId) ]
---      , expect = Http.expectJson GotItemDependencies itemDependenciesDecoder
---      }
---
---itemDependenciesDecoder : Decoder ItemDependencies
---itemDependenciesDecoder =
---    Json.Decode.map4 ItemDependencies
---      (Json.Decode.field "id" Json.Decode.int)
---      (Json.Decode.field "name" Json.Decode.string)
---      (Json.Decode.field "description" Json.Decode.string)
---      (Json.Decode.field "dependencies" (Json.Decode.list itemDependencyDecoder))
---
---itemDependencyDecoder : Decoder ItemDependency
---itemDependencyDecoder =
---  Json.Decode.map4 ItemDependency
---    (Json.Decode.field "id" Json.Decode.int)
---    (Json.Decode.field "name" Json.Decode.string)
---    (Json.Decode.field "description" Json.Decode.string)
---    (Json.Decode.field "reason" Json.Decode.string)
---
+viewItemDependenciesRow : List ItemDependency -> List ( Html Msg )
+viewItemDependenciesRow dependencies =
+  List.map
+    (\dep ->
+      tr []
+         [ td [] [ text ( String.fromInt dep.id ) ]
+         , td [] [ a [ href (String.concat ["items?id=", String.fromInt dep.id ]) ]
+                     [ text dep.name ]
+                 ]
+         , td [] [ text dep.description ]
+         , td [] [ a [ href (String.concat ["item_dependencies?id=", String.fromInt dep.id ]) ]
+                     [ text "Dependencies" ]
+                 ]
+         ]
+    )
+    dependencies
+
+
+
+getItems : Cmd Msg
+getItems =
+    Http.get
+        { url = "http://localhost:8080/items"
+        , expect = Http.expectJson GotItemsMsg itemsDecoder
+        }
+
+itemDecoder : Decoder Item
+itemDecoder =
+    Json.Decode.map3 Item
+        (Json.Decode.field "id" Json.Decode.int)
+        (Json.Decode.field "name" Json.Decode.string)
+        (Json.Decode.field "description" Json.Decode.string)
+
+itemsDecoder : Decoder (List Item)
+itemsDecoder =
+    Json.Decode.list itemDecoder
+
+
+getItemTypes : Cmd Msg
+getItemTypes =
+    Http.get
+        { url = "http://localhost:8080/item_types"
+        , expect = Http.expectJson GotItemTypesMsg itemTypesDecoder
+        }
+
+itemTypeDecoder : Decoder ItemType
+itemTypeDecoder =
+  Json.Decode.map2 ItemType
+    (Json.Decode.field "id" Json.Decode.int)
+    (Json.Decode.field "name" Json.Decode.string)
+
+itemTypesDecoder : Decoder (List ItemType)
+itemTypesDecoder =
+    Json.Decode.list itemTypeDecoder
+
+
+getItemDependencies : Int -> Cmd Msg
+getItemDependencies itemId =
+    Http.get
+      { url = String.concat ["http://localhost:8080/item_dependencies?itemId=", String.fromInt(itemId) ]
+      , expect = Http.expectJson GotItemDependenciesMsg itemDependenciesDecoder
+      }
+
+itemDependenciesDecoder : Decoder ItemDependencies
+itemDependenciesDecoder =
+    Json.Decode.map4 ItemDependencies
+      (Json.Decode.field "id" Json.Decode.int)
+      (Json.Decode.field "name" Json.Decode.string)
+      (Json.Decode.field "description" Json.Decode.string)
+      (Json.Decode.field "dependencies" (Json.Decode.list itemDependencyDecoder))
+
+itemDependencyDecoder : Decoder ItemDependency
+itemDependencyDecoder =
+  Json.Decode.map4 ItemDependency
+    (Json.Decode.field "id" Json.Decode.int)
+    (Json.Decode.field "name" Json.Decode.string)
+    (Json.Decode.field "description" Json.Decode.string)
+    (Json.Decode.field "reason" Json.Decode.string)
+
 
 
 subscriptions : Model -> Sub Msg
