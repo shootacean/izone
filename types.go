@@ -136,3 +136,39 @@ func (itemDeps *ItemDependencies) Fetch(itemId int) error {
 	}
 	return nil
 }
+
+func (itemDeps *ItemDependencies) FetchDepended(itemId int) error {
+	db, err := sql.Open(driverName, dbName)
+	if err != nil {
+		fmt.Printf("%v", err)
+		return err
+	}
+	rows, errQuery := db.Query(`
+		SELECT
+    		item_dependencies.item_id AS id,
+    		dependency_items.name AS name,
+    		dependency_items.description AS description,
+    		item_dependencies.reason AS reason
+		FROM items
+       		LEFT JOIN item_types ON item_types.id = items.type_id
+       		INNER JOIN item_dependencies ON item_dependencies.item_dest_id = items.id
+       		LEFT JOIN items dependency_items ON dependency_items.id = item_dependencies.item_id
+       		LEFT JOIN item_types dependency_item_types ON dependency_item_types.id = dependency_items.type_id
+	WHERE items.id = $1
+	`, itemId)
+	if errQuery != nil {
+		fmt.Printf("%v", errQuery)
+		return errQuery
+	}
+	defer rows.Close()
+	
+	for rows.Next() {
+		i := ItemDependency{}
+		if err := rows.Scan(&i.Id, &i.Name, &i.Description, &i.Reason); err != nil {
+			fmt.Printf("%v", err)
+			return err
+		}
+		itemDeps.Dependencies = append(itemDeps.Dependencies, i)
+	}
+	return nil
+}
