@@ -7,5 +7,6 @@
 go run ./...
 
 # Web UI
-elm reactor 
+elm make src/Main.elm --output=app.js
+# Open index.html
 ```
