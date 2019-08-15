@@ -2,10 +2,8 @@ import Browser
 import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick)
 import Url
 import Url.Parser as Parser exposing (Parser, (</>), (<?>))
-import Url.Parser.Query as Query
 import Http
 import Json.Decode exposing (Decoder)
 import Debug
@@ -175,57 +173,66 @@ view : Model -> Browser.Document Msg
 view model =
     case model.route of
         Nothing ->
-            viewHomePage model
+            viewPage model viewHomePage
         Just HomeRoute ->
-            viewHomePage model
+            viewPage model viewHomePage
         Just (ItemRoute _) ->
-            viewItemPage model
+            viewPage model viewItemPage
         Just ItemsRoute ->
-            viewItemsPage model
+            viewPage model viewItemsPage
         Just ItemTypesRoute ->
-            viewItemTypesPage model
+            viewPage model viewItemTypesPage
 
-
-viewHomePage : Model -> Browser.Document Msg
-viewHomePage model =
-    { title = "Izone | Items"
+viewPage : Model -> (Model -> Html Msg) -> Browser.Document Msg
+viewPage model viewContent =
+    { title = "Izone"
     , body =
-        [ h1 [] [ text "Welcome Izone!" ]
-        , a [ href "/#/" ] [ text "Home" ]
-        , text " | "
-        , a [ href "/#/items" ] [ text "Items" ]
-        , text " | "
-        , a [ href "/#/item_types" ] [ text "ItemTypes" ]
-        , h2 [] [ text "Home!" ]
+        [ div []
+              [ div [] [ viewHeader ]
+              , div [ class "uk-container uk-margin-top" ] [ viewContent model ]
+              , viewFooter
+              ]
         ]
     }
 
+viewHeader : Html Msg
+viewHeader =
+    header [ attribute "uk-sticky" "" ]
+           [ nav [ class "uk-navbar-container", attribute "uk-navbar" ""]
+                 [ div [ class "uk-navbar-left" ]
+                       [ ul [ class "uk-navbar-nav" ]
+                            [ li [] [ a [ href "/#/" ] [ text "Izone" ] ]
+                            , li [] [ a [ href "/#/items" ] [ text "Items" ] ]
+                            , li [] [ a [ href "/#/item_types" ] [ text "ItemTypes" ] ]
+                            ]
+                       ]
+                 ]
+           ]
 
-viewItemsPage : Model -> Browser.Document Msg
+viewFooter : Html Msg
+viewFooter =
+    footer [] []
+
+viewHomePage : Model -> Html Msg
+viewHomePage model =
+    div [] [ h2 [ class "uk-heading-divider" ] [ text "Home" ] ]
+
+
+viewItemsPage : Model -> Html Msg
 viewItemsPage model =
-    { title = "Izone | Items"
-    , body =
-        [ h1 [] [ text "Welcome Izone!" ]
-        , a [ href "/#/" ] [ text "Home" ]
-        , text " | "
-        , a [ href "/#/items" ] [ text "Items" ]
-        , text " | "
-        , a [ href "/#/item_types" ] [ text "ItemTypes" ]
-        , hr [] []
-        , h2 [] [ text "Items" ]
+    div []
+        [ h2 [ class "uk-heading-divider" ] [ text "Items" ]
         , viewItemList model.items
         ]
-    }
 
 viewItemList : List Item -> Html Msg
 viewItemList items =
-    table []
+    table [ class "uk-table uk-table-divider uk-table-hover" ]
           [ thead []
                   [ tr []
                        [ th [] [ text "Id" ]
                        , th [] [ text "Name" ]
                        , th [] [ text "Description" ]
-                       , th [] [ text "" ]
                        ]
                   ]
           , tbody [] ( viewItemRow items )
@@ -246,54 +253,48 @@ viewItemRow items =
     items
 
 
-viewItemPage : Model -> Browser.Document Msg
+viewItemPage : Model -> Html Msg
 viewItemPage model =
-    { title = "Izone | Item"
-    , body =
-        [ h1 [] [ text "Welcome Izone!" ]
-        , a [ href "/#/" ] [ text "Home" ]
-        , text " | "
-        , a [ href "/#/items" ] [ text "Items" ]
-        , text " | "
-        , a [ href "/#/item_types" ] [ text "ItemTypes" ]
-        , hr [] []
-        , h2 [] [ text "Item" ]
-        , text (String.fromInt model.item.id)
-        , text model.item.name
-        , text model.item.description
-        , hr [] []
-        , h2 [] [ text "依存" ]
+    div []
+        [ h2 [ class "uk-heading-divider" ] [ text "Item" ]
+        , div [ class "uk-form-stacked" ]
+              [ div [ class "uk-margin" ]
+                    [ label [ class "uk-form-label" ] [ text "Id" ]
+                    , text (String.fromInt model.item.id) ]
+              , div [ class "uk-margin" ]
+                    [ label [ class "uk-form-label" ] [ text "Name" ]
+                    , div [ class "uk-form-controls" ]
+                          [ input [ class "uk-input", value model.item.name ] []
+                          ]
+                    ]
+              , div [ class "uk-margin" ]
+                    [ label [ class "uk-form-label" ] [ text "Description" ]
+                    , div [ class "uk-form-controls" ]
+                          [ textarea [ class "uk-textarea" ] [ text model.item.description ]
+                          ]
+                    ]
+              ]
+        , h2 [ class "uk-heading-bullet" ] [ text "依存" ]
         , viewItemDependenciesTable model.itemDependencies.dependecies
-        , hr [] []
-        , h2 [] [ text "被依存" ]
+        , h2 [ class "uk-heading-bullet" ] [ text "被依存" ]
         , viewItemDependenciesTable model.itemDepended.dependecies
         ]
-    }
 
-viewItemTypesPage : Model -> Browser.Document Msg
+
+viewItemTypesPage : Model -> Html Msg
 viewItemTypesPage model =
-   { title = "Izone | Items"
-   , body =
-        [ h1 [] [ text "Welcome Izone!" ]
-        , h2 [] [ text "ItemTypes!" ]
-        , a [ href "/#/" ] [ text "Home" ]
-        , text " | "
-        , a [ href "/#/items" ] [ text "Items" ]
-        , text " | "
-        , a [ href "/#/item_types" ] [ text "ItemTypes" ]
-        , viewItemTypeTable model.itemTypes
-        ]
-   }
+   div []
+       [ h2 [] [ text "Item Types" ]
+       , viewItemTypeTable model.itemTypes
+       ]
 
 viewItemTypeTable : List ItemType -> Html Msg
 viewItemTypeTable itemTypes =
-    table []
+    table [ class "uk-table uk-table-divider uk-table-hover" ]
           [ thead []
                   [ tr []
                        [ th [] [ text "Id" ]
                        , th [] [ text "Name" ]
-                       , th [] [ text "Description" ]
-                       , th [] [ text "" ]
                        ]
                   ]
           , tbody [] ( viewItemTypeRow itemTypes )
@@ -305,8 +306,9 @@ viewItemTypeRow itemTypes =
     (\itemType ->
       tr []
          [ td [] [ text ( String.fromInt itemType.id ) ]
-         , a [ href (String.concat ["/#/item_types/", String.fromInt itemType.id ]) ]
-             [ text itemType.name ]
+         , td [] [ a [ href (String.concat ["/#/item_types/", String.fromInt itemType.id ]) ]
+                     [ text itemType.name ]
+                 ]
          ]
     )
     itemTypes
@@ -314,13 +316,12 @@ viewItemTypeRow itemTypes =
 
 viewItemDependenciesTable : List ItemDependency -> Html Msg
 viewItemDependenciesTable dependencies =
-    table []
+    table [ class "uk-table uk-table-divider uk-table-hover" ]
           [ thead []
                   [ tr []
                        [ th [] [ text "Id" ]
                        , th [] [ text "Name" ]
                        , th [] [ text "Description" ]
-                       , th [] [ text "" ]
                        ]
                   ]
           , tbody [] ( viewItemDependenciesRow dependencies )
