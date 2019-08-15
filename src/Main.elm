@@ -2,6 +2,7 @@ import Browser
 import Browser.Navigation as Nav
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Html.Events exposing (onInput)
 import Url
 import Url.Parser as Parser exposing (Parser, (</>), (<?>))
 import Http
@@ -26,6 +27,7 @@ type alias Model =
     { key : Nav.Key
     , route : Maybe Route
     , items : List Item
+    , itemsFilterText : String
     , item : Item
     , itemTypes : List ItemType
     , itemDependencies : ItemDependencies
@@ -78,7 +80,7 @@ init flags url key =
         itemDep = ItemDependencies 0 "" "" []
         itemDeped = ItemDependencies 0 "" "" []
     in
-    changeRouteTo (fromUrl url) ( Model key (Just HomeRoute) [] item [] itemDep itemDeped)
+    changeRouteTo (fromUrl url) ( Model key (Just HomeRoute) [] "" item [] itemDep itemDeped)
 
 
 
@@ -90,6 +92,7 @@ type Msg
     | GotItemTypesMsg (Result Http.Error (List ItemType))
     | GotItemDependenciesMsg (Result Http.Error ItemDependencies)
     | GotItemDependedMsg (Result Http.Error ItemDependencies)
+    | ChangedItemsFilterTextMsg String
 
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
@@ -152,6 +155,8 @@ update msg model =
                     Debug.log ( Debug.toString err )
                     ( { model | itemDepended = itemDeped } , Cmd.none )
 
+        ChangedItemsFilterTextMsg s ->
+            ( { model | itemsFilterText = s } , Cmd.none)
 
 changeRouteTo : Maybe Route -> Model -> ( Model, Cmd Msg )
 changeRouteTo route model =
@@ -222,8 +227,16 @@ viewItemsPage : Model -> Html Msg
 viewItemsPage model =
     div []
         [ h2 [ class "uk-heading-divider" ] [ text "Items" ]
-        , viewItemList model.items
+        , input [ class "uk-input", placeholder "filter text", onInput ChangedItemsFilterTextMsg, value model.itemsFilterText ]
+                []
+        , List.filter (isMatchItem model.itemsFilterText) model.items
+            |> viewItemList
         ]
+
+isMatchItem : String -> Item -> Bool
+isMatchItem filterText item =
+    String.contains filterText item.name
+
 
 viewItemList : List Item -> Html Msg
 viewItemList items =
