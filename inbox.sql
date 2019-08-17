@@ -8,8 +8,6 @@ create table items
 (
   id                 integer not null constraint servers_pk primary key autoincrement,
   name               text,
-  private_ip_address text,
-  public_ip_address  text,
   description        text,
   type_id            integer
 );
