@@ -6,7 +6,7 @@ import (
 )
 
 const driverName = "sqlite3"
-const dbName = "./izone.sqlite"
+const dbName = "./izone-demo.sqlite"
 
 type ItemType struct {
 	Id   int    `json:"id"`
@@ -126,6 +126,7 @@ func (itemDeps *ItemDependencies) Fetch(itemId int) error {
 	}
 	defer rows.Close()
 	
+	itemDeps.Dependencies = []ItemDependency{}
 	for rows.Next() {
 		i := ItemDependency{}
 		if err := rows.Scan(&i.Id, &i.Name, &i.Description, &i.Reason); err != nil {
@@ -162,6 +163,7 @@ func (itemDeps *ItemDependencies) FetchDepended(itemId int) error {
 	}
 	defer rows.Close()
 	
+	itemDeps.Dependencies = []ItemDependency{}
 	for rows.Next() {
 		i := ItemDependency{}
 		if err := rows.Scan(&i.Id, &i.Name, &i.Description, &i.Reason); err != nil {
