@@ -39,13 +39,13 @@ type alias ItemType =
     { id : Int, name : String }
 
 type alias Item =
-    { id : Int, name : String, description : String}
+    { id : Int, name : String, typeName : String, description : String }
 
 type alias ItemDependency =
-    { id : Int, name : String, description : String, reason : String }
+    { id : Int, name : String, typeName : String, description : String, reason : String }
 
 type alias ItemDependencies =
-    { id : Int, name : String, description : String, dependecies : (List ItemDependency) }
+    { id : Int, name : String, typeName : String, description : String, dependecies : (List ItemDependency) }
 
 
 
@@ -76,9 +76,9 @@ fromUrl url =
 init : () -> Url.Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     let
-        item = Item 0 "" ""
-        itemDep = ItemDependencies 0 "" "" []
-        itemDeped = ItemDependencies 0 "" "" []
+        item = Item 0 "" "" ""
+        itemDep = ItemDependencies 0 "" "" "" []
+        itemDeped = ItemDependencies 0 "" "" "" []
     in
     changeRouteTo (fromUrl url) ( Model key (Just HomeRoute) [] "" item [] itemDep itemDeped)
 
@@ -139,7 +139,7 @@ update msg model =
                     ( { model | itemDependencies = itemDependencies } , getItemDepended itemDependencies.id )
                 Err err ->
                     let
-                        itemDependencies = ItemDependencies 0 "" "" []
+                        itemDependencies = ItemDependencies 0 "" "" "" []
                     in
                     Debug.log ( Debug.toString err )
                     ( { model | itemDependencies = itemDependencies }, Cmd.none )
@@ -150,7 +150,7 @@ update msg model =
                     ( { model | itemDepended = itemDependencies } , Cmd.none )
                 Err err ->
                     let
-                        itemDeped = ItemDependencies 0 "" "" []
+                        itemDeped = ItemDependencies 0 "" "" "" []
                     in
                     Debug.log ( Debug.toString err )
                     ( { model | itemDepended = itemDeped } , Cmd.none )
@@ -245,6 +245,7 @@ viewItemList items =
                   [ tr []
                        [ th [] [ text "Id" ]
                        , th [] [ text "Name" ]
+                       , th [] [ text "Type" ]
                        , th [] [ text "Description" ]
                        ]
                   ]
@@ -260,6 +261,7 @@ viewItemRow items =
          , td [] [ a [ href (String.concat ["/#/items/", String.fromInt item.id ]) ]
                      [ text item.name ]
                  ]
+         , td [] [ text item.typeName ]
          , td [] [ text item.description ]
          ]
     )
@@ -279,6 +281,11 @@ viewItemPage model =
                     , div [ class "uk-form-controls" ]
                           [ input [ class "uk-input", value model.item.name ] []
                           ]
+                    ]
+              , div [ class "uk-margin" ]
+                    [ label [ class "uk-form-label" ] [ text "Type" ]
+                    , div [ class "uk-form-controls" ]
+                          [ text model.item.typeName ]
                     ]
               , div [ class "uk-margin" ]
                     [ label [ class "uk-form-label" ] [ text "Description" ]
@@ -334,6 +341,7 @@ viewItemDependenciesTable dependencies =
                   [ tr []
                        [ th [] [ text "Id" ]
                        , th [] [ text "Name" ]
+                       , th [] [ text "Type" ]
                        , th [] [ text "Description" ]
                        , th [] [ text "Reason" ]
                        ]
@@ -350,6 +358,7 @@ viewItemDependenciesRow dependencies =
          , td [] [ a [ href (String.concat ["/#/items/", String.fromInt dep.id ]) ]
                      [ text dep.name ]
                  ]
+         , td [] [ text dep.typeName ]
          , td [] [ text dep.description ]
          , td [] [ text dep.reason ]
          ]
@@ -367,9 +376,10 @@ getItems =
 
 itemDecoder : Decoder Item
 itemDecoder =
-    Json.Decode.map3 Item
+    Json.Decode.map4 Item
         (Json.Decode.field "id" Json.Decode.int)
         (Json.Decode.field "name" Json.Decode.string)
+        (Json.Decode.field "typeName" Json.Decode.string)
         (Json.Decode.field "description" Json.Decode.string)
 
 itemsDecoder : Decoder (List Item)
@@ -412,17 +422,19 @@ getItemDependencies itemId =
 
 itemDependenciesDecoder : Decoder ItemDependencies
 itemDependenciesDecoder =
-    Json.Decode.map4 ItemDependencies
+    Json.Decode.map5 ItemDependencies
       (Json.Decode.field "id" Json.Decode.int)
       (Json.Decode.field "name" Json.Decode.string)
+      (Json.Decode.field "typeName" Json.Decode.string)
       (Json.Decode.field "description" Json.Decode.string)
       (Json.Decode.field "dependencies" (Json.Decode.list itemDependencyDecoder))
 
 itemDependencyDecoder : Decoder ItemDependency
 itemDependencyDecoder =
-  Json.Decode.map4 ItemDependency
+  Json.Decode.map5 ItemDependency
     (Json.Decode.field "id" Json.Decode.int)
     (Json.Decode.field "name" Json.Decode.string)
+    (Json.Decode.field "typeName" Json.Decode.string)
     (Json.Decode.field "description" Json.Decode.string)
     (Json.Decode.field "reason" Json.Decode.string)
 
