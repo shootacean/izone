@@ -269,7 +269,7 @@ viewItemRow items =
 viewItemPage : Model -> Html Msg
 viewItemPage model =
     div []
-        [ h2 [ class "uk-heading-divider" ] [ text "Item" ]
+        [ h2 [ class "uk-heading-divider" ] [ text model.item.name ]
         , div [ class "uk-form-stacked" ]
               [ div [ class "uk-margin" ]
                     [ label [ class "uk-form-label" ] [ text "Id" ]
@@ -335,6 +335,7 @@ viewItemDependenciesTable dependencies =
                        [ th [] [ text "Id" ]
                        , th [] [ text "Name" ]
                        , th [] [ text "Description" ]
+                       , th [] [ text "Reason" ]
                        ]
                   ]
           , tbody [] ( viewItemDependenciesRow dependencies )
@@ -350,6 +351,7 @@ viewItemDependenciesRow dependencies =
                      [ text dep.name ]
                  ]
          , td [] [ text dep.description ]
+         , td [] [ text dep.reason ]
          ]
     )
     dependencies
